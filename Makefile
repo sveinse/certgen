@@ -39,7 +39,7 @@ all:
 	@echo "        make <user>.crt"
 	@echo
 	@echo "Other functions:"
-	@echo "  o Compile p12 keybag"
+	@echo "  o Compile p12 keybag (CA cert is already included)"
 	@echo "        make CERTINC=<certs_to_include> <user>.p12"
 	@echo "  o Information about a certificate"
 	@echo "        make CERT=<file.crt> info"
