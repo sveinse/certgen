@@ -11,7 +11,7 @@ ifeq "$(CONF)" ""
 	CONF = "./openssl.cnf"
 endif
 ifeq "$(CA)" ""
-	CA = solidasca
+	CA = seldalca
 	export CA
 endif
 ifeq "$(SERVER)" "" 
