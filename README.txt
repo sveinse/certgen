@@ -4,12 +4,12 @@ Tools for creating crypto certificates:
 
 make ca
      To create a self-signed CA. Creates:
-        - solidasca.key        CA private key
-        - solidasca.crt        CA public certificate
-        - solidasca.crl        CA revocation list
-        - solidasca.db.certs   All CA signed certificates
-        - solidasca.db.index   
-        - solidasca.db.serial  Next available certificate serial number
+        - seldalca.key        CA private key
+        - seldalca.crt        CA public certificate
+        - seldalca.crl        CA revocation list
+        - seldalca.db.certs   All CA signed certificates
+        - seldalca.db.index   
+        - seldalca.db.serial  Next available certificate serial number
 
 make SERVER=<server> server
      To create a server certificate. Creates:
