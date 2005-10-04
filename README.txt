@@ -1,5 +1,10 @@
 
-Tools for creating crypto certificates:
+This is a toolset for generating crypto certificates to a self-signed CA.
+
+
+
+-------------------
+This documentation may be slightly outdated, but still relevant:
 
 
 make ca

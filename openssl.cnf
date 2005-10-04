@@ -32,10 +32,10 @@ ca                      = $ENV::CA
 
 ####################################################################
 [ ca ]
-default_ca	= Seldal_CA		    # The default ca section
+default_ca	= Default_CA		# The default ca section
 
 ####################################################################
-[ Seldal_CA ]
+[ Default_CA ]
 
 dir		= .                     # Where everything is kept
 certs		= $dir/certs            # Where the issued certs are kept
@@ -146,6 +146,39 @@ authorityKeyIdentifier = keyid,issuer:always
 subjectAltName         = email:copy
 extendedKeyUsage       = serverAuth,clientAuth,msSGC,nsSGC,emailProtection
 
+
+[ ca_cert ]
+
+# PKIX recommendation.
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always,issuer:always
+
+# This is what PKIX recommends but some broken software chokes on critical
+# extensions.
+basicConstraints       = critical,CA:true
+# So we do this instead.
+#basicConstraints = CA:true
+
+# Key usage: this is typical for a CA certificate. However since it will
+# prevent it being used as an test self-signed certificate it is best
+# left out by default.
+# keyUsage = cRLSign, keyCertSign
+
+# Some might want this also
+# nsCertType = sslCA, emailCA
+
+# Include email address in subject alt name: another PKIX recommendation
+# subjectAltName=email:copy
+# Copy issuer details
+# issuerAltName=issuer:copy
+
+# DER hex encoding of an extension: beware experts only!
+# obj=DER:02:03
+# Where 'obj' is a standard or added object
+# You can even override a supported extension:
+# basicConstraints= critical, DER:30:03:01:01:FF
+
+
 ####################################################################
 [ crl_ext ]
 
@@ -157,14 +190,12 @@ authorityKeyIdentifier=keyid:always,issuer:always
 
 
 ####################################################################
-####################################################################
-####################################################################
 [ req ]
 default_bits		= 2048
 default_keyfile 	= privkey.key
 distinguished_name	= req_distinguished_name
 #attributes		 = req_attributes
-#x509_extensions	 = v3_ca   # The extentions to add to the self signed cert
+#x509_extensions	 = ca_cert   # The extentions to add to the self signed cert
 
 # Passwords for private keys if not present they will be prompted for
 # input_password = secret
@@ -239,40 +270,6 @@ nsCertType       = client,email
 keyUsage         = nonRepudiation,digitalSignature,keyEncipherment
 
 [ v3_req_ca ]
+
 nsCertType       = objsign,email,server
 
-
-####################################################################
-# Extensions for a typical CA
-[ v3_ca ]
-
-# PKIX recommendation.
-
-subjectKeyIdentifier=hash
-
-authorityKeyIdentifier=keyid:always,issuer:always
-
-# This is what PKIX recommends but some broken software chokes on critical
-# extensions.
-basicConstraints = critical,CA:true
-# So we do this instead.
-#basicConstraints = CA:true
-
-# Key usage: this is typical for a CA certificate. However since it will
-# prevent it being used as an test self-signed certificate it is best
-# left out by default.
-# keyUsage = cRLSign, keyCertSign
-
-# Some might want this also
-# nsCertType = sslCA, emailCA
-
-# Include email address in subject alt name: another PKIX recommendation
-# subjectAltName=email:copy
-# Copy issuer details
-# issuerAltName=issuer:copy
-
-# DER hex encoding of an extension: beware experts only!
-# obj=DER:02:03
-# Where 'obj' is a standard or added object
-# You can even override a supported extension:
-# basicConstraints= critical, DER:30:03:01:01:FF
