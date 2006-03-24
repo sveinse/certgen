@@ -31,31 +31,29 @@ export CA
 
 
 all:
+	@echo 
+	@echo "Seldal CA build system v1.1 2006-03-24"
 	@echo
-	@echo "  o Self-signed CA certificate"
-	@echo "        make ca ca=<name>"
-	@echo "  o Server certificates"
-	@echo "        make server server=<name>"
-	@echo "  o User certificates"
-	@echo "        make user user=<name>"
+	@echo "  make ca ca=<name>                       Self-signed CA certificate"
+	@echo "  make server server=<name>               Server certificates"
+	@echo "  make user user=<name>                   User certificates"
 	@echo
-	@echo "  o Compile pkcs12 keybag (CA cert is already included)"
-	@echo "        make inc=<certs_to_include> <user>.p12"
-	@echo "  o Revoke a certificate"
-	@echo "        make revoke cert=<cert>"
-	@echo "  o Update the revocation list"
-	@echo "        make update-crl"
+	@echo "  make revoke cert=<cert>                 Revoke a certificate"
+	@echo "  make update-crl                         Update the revocation list"
+	@echo "  make crl-info                           View revocation list"
+	@echo "  make ca-info                            View certifactes"
 	@echo
-	@echo "  o Key info"
-	@echo "        make key-info key=<key>"
-	@echo "  o Certificate info"
-	@echo "        make info cert=<cert>"
-	@echo "  o Remove password from key"
-	@echo "       make rempwd in=<in_key> out=<out_key>"
-	@echo "  o View crl (certificate revocation list)"
-	@echo "       make crl-info crl=<crl>"
-	@echo "  o View pkcs12 info"
-	@echo "       make p12-info p12=<p12>"
+	@echo "  make inc=<certs_to_incl> <user>.p12     Compile pkcs12 keybag (CA included)"
+	@echo "  make rempwd in=<in_key> out=<out_key>   Remove password from key"
+	@echo
+	@echo "  make info cert=<cert>                   Certificate info"
+	@echo "  make key-info key=<key>                 Key info"
+	@echo "  make p12-info p12=<p12>                 View pkcs12 info"
+	@echo
+	@echo "  make <file>.key                         Make a private key"
+	@echo "  make <file>.csr                         Create a signing request"
+	@echo "  make <file>.crt                         Create a certificate"
+
 
 
 #
@@ -100,7 +98,7 @@ server:
 
 update-crl:
 	make $(CA).crl
-	-cat $(CA).db.index
+	make ca-info
 
 
 revoke:
@@ -152,7 +150,7 @@ $(CA).crl: $(CA).key $(CA).crt $(CA).db.index
 #
 # Create a PKCS12 keybag
 #
-%.p12: %.crt force
+%.p12: %.crt
 	@echo
 	@echo "**** Create a PKCS12 keybag, $@"
 	@echo "**** Including certificates CA + '$(inc)'"
@@ -183,12 +181,14 @@ info:
 	@test $${cert:?"usage: make $@ cert=<cert>"}
 	openssl x509 -text -noout -in $(cert)
 
+ca-info:
+	cat $(CA).db.index
+
 key-info:
 	@test $${key:?"usage: make $@ key=<cert>"}
 	openssl rsa -text -noout -in $(key)
 
 crl-info:
-	@test $${crl:?"usage: make $@ crl=<crl>"}
 	-openssl crl -text -noout -in $(CA).crl
 
 p12-info:
@@ -212,6 +212,5 @@ distclean:
 	@test $${force:?"usage: make $@ force=1"}
 	-rm -rf *~ *.key *.crt *.crl *.csr *.db.* *.p12 .depend
 
-force:
-
+.PHONY: %.p12 $(CA).crl
 .PRECIOUS: %.key %.crt
