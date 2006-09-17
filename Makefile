@@ -16,9 +16,9 @@
 # Default keysize
 KEY_BITS ?= 2048
 
-# Default certificate lifetimes
-CA_DAYS ?= 1100
-SERVER_DAYS ?= 365
+# Default certificate lifetimes (2555=7y, 1095=3y)
+CA_DAYS ?= 2555
+SERVER_DAYS ?= 1095
 DAYS ?= 365
 
 # Default configuration
@@ -93,7 +93,7 @@ server:
 	make CSR_EXT="-reqexts v3_req_server" DAYS=$(SERVER_DAYS) $(server).csr
 
 	# Sign the request
-	make CRT_EXT="-extensions server_cert" $(server).crt
+	make CRT_EXT="-extensions server_cert" DAYS=$(SERVER_DAYS) $(server).crt
 
 
 update-crl:
@@ -126,7 +126,7 @@ revoke:
 	@echo
 	@echo "**** Create a user certificate, $@"
 	@echo
-	openssl ca $(CONF) $(CRT_EXT) -out $@ -infiles $<
+	openssl ca $(CONF) $(CRT_EXT) -days $(DAYS) -out $@ -infiles $<
 	make update-crl
 
 # Create a CA revoke-file
