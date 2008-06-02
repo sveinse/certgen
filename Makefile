@@ -15,10 +15,11 @@
 
 # Default keysize
 KEY_BITS ?= 2048
+CA_BITS ?= 4096
 
-# Default certificate lifetimes (2555=7y, 1095=3y)
-CA_DAYS ?= 2555
-SERVER_DAYS ?= 1095
+# Default certificate lifetimes
+CA_DAYS ?= 3650
+SERVER_DAYS ?= 730
 DAYS ?= 365
 
 # Default configuration
@@ -29,10 +30,13 @@ CONF = -config $(CONFIG)
 CA ?= seldalca
 export CA
 
+# Standard include (used in P12)
+STDINC ?= www_seldal_com.crt
+
 
 all:
 	@echo 
-	@echo "Seldal CA build system v1.1 2006-03-24"
+	@echo "Seldal CA build system v1.2 2008-04-07"
 	@echo
 	@echo "  make ca ca=<name>                       Self-signed CA certificate"
 	@echo "  make server server=<name>               Server certificates"
@@ -43,8 +47,9 @@ all:
 	@echo "  make crl-info                           View revocation list"
 	@echo "  make ca-info                            View certifactes"
 	@echo
-	@echo "  make inc=<certs_to_incl> <user>.p12     Compile pkcs12 keybag (CA included)"
 	@echo "  make rempwd in=<in_key> out=<out_key>   Remove password from key"
+	@echo "  make p12 user=<name> [out=<name>] [inc=<certs_to_incl>]"
+	@echo "                                          Compile pkcs12 keybag (CA included)"
 	@echo
 	@echo "  make info cert=<cert>                   Certificate info"
 	@echo "  make key-info key=<key>                 Key info"
@@ -64,7 +69,7 @@ ca:
 	echo "CA = $(ca)" >.depend
 
 	# Make the key (add this for pwd: KEY_EXT="-des3" )
-	make $(ca).key 
+	make KEY_BITS=$(CA_BITS) $(ca).key 
 
 	# Create a cert for our CA
 	if [ ! -f $(ca).crt ]; then \
@@ -93,7 +98,14 @@ server:
 	make CSR_EXT="-reqexts v3_req_server" DAYS=$(SERVER_DAYS) $(server).csr
 
 	# Sign the request
-	make CRT_EXT="-extensions server_cert" DAYS=$(SERVER_DAYS) $(server).crt
+	make CRT_EXT="-extensions server_cert -days $(SERVER_DAYS)" $(server).crt
+
+
+p12:
+	@test $${user:?"usage: make $@ user=<name>"}
+
+	# Make the conversion
+	make IN=$(user).crt OUT=$${out:-$(user)}.p12 INC=$${inc:-$(STDINC)} p12_maker
 
 
 update-crl:
@@ -105,6 +117,7 @@ revoke:
 	@test $${cert:?"usage: make $@ cert=<name>"}
 	openssl ca $(CONF) -revoke $(cert)
 	make update-crl
+
 
 
 # Generate a private key
@@ -126,7 +139,7 @@ revoke:
 	@echo
 	@echo "**** Create a user certificate, $@"
 	@echo
-	openssl ca $(CONF) $(CRT_EXT) -days $(DAYS) -out $@ -infiles $<
+	openssl ca $(CONF) $(CRT_EXT) -out $@ -infiles $<
 	make update-crl
 
 # Create a CA revoke-file
@@ -150,16 +163,16 @@ $(CA).crl: $(CA).key $(CA).crt $(CA).db.index
 #
 # Create a PKCS12 keybag
 #
-%.p12: %.crt
+p12_maker:
 	@echo
-	@echo "**** Create a PKCS12 keybag, $@"
-	@echo "**** Including certificates CA + '$(inc)'"
+	@echo "**** Create a PKCS12 keybag $(OUT) from $(IN)"
+	@echo "**** Including certificates CA + '$(INC)'"
 	@echo
-	NAME="`openssl x509 -noout -text -in $< |grep "Subject:" | sed -e 's/.*CN=//' | sed -e 's/\/.*//'`"; \
+	NAME="`openssl x509 -noout -text -in $(IN) |grep "Subject:" | sed -e 's/.*CN=//' | sed -e 's/\/.*//'`"; \
 	echo; echo "Certificate for '$$NAME'"; \
-	echo -n "openssl pkcs12 -export -in $< -inkey $(basename $<).key -name \"$$NAME\" -out $@ -certfile .tmp.crt ">.tmp.sh; \
+	echo -n "openssl pkcs12 -export -in $(IN) -inkey $(basename $(IN)).key -name \"$$NAME\" -out $(OUT) -certfile .tmp.crt ">.tmp.sh; \
 	echo >.tmp.crt; \
-	for cert in $(CA).crt $(inc); do \
+	for cert in $(CA).crt $(INC); do \
 		CERTNAME="`openssl x509 -noout -text -in $$cert |grep "Subject:" | sed -e 's/.*CN=//' | sed -e 's/\/.*//'`"; \
 		cat $$cert >>.tmp.crt; \
 		echo "Adding '$$CERTNAME'"; \
@@ -167,7 +180,7 @@ $(CA).crl: $(CA).key $(CA).crt $(CA).db.index
 	done; \
 	echo >>.tmp.sh; \
 	echo; cat .tmp.sh; \
-	. .tmp.sh; \
+	. .tmp.sh;
 	rm .tmp.sh .tmp.crt
 
 

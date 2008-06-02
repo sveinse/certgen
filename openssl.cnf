@@ -77,7 +77,7 @@ policy		= policy_match
 # For the CA policy
 [ policy_match ]
 countryName		= match
-stateOrProvinceName	= match
+localityName            = supplied
 organizationName	= supplied
 organizationalUnitName	= optional
 commonName		= supplied
@@ -221,11 +221,11 @@ countryName_default		= NO
 countryName_min			= 2
 countryName_max			= 2
 
-stateOrProvinceName		= State or Province Name (full name)
-stateOrProvinceName_default	= Sor-Trondelag
+#stateOrProvinceName		= State or Province Name (full name)
+#stateOrProvinceName_default	= Rogaland
 
 localityName			= Locality Name (eg, city)
-localityName_default		= Trondheim
+localityName_default		= Kleppe
 
 0.organizationName		= Organization Name (eg, company)
 0.organizationName_default	= Seldal.com
