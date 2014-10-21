@@ -14,8 +14,8 @@
 -include .depend
 
 # Default keysize
-KEY_BITS ?= 2048
-CA_BITS ?= 4096
+KEY_BITS ?= 4096
+CA_BITS ?= 8192
 
 # Default certificate lifetimes
 CA_DAYS ?= 3650
@@ -31,7 +31,7 @@ CA ?= seldalca
 export CA
 
 # Standard include (used in P12)
-STDINC ?= www_seldal_com.crt
+STDINC ?= 
 
 
 all:
@@ -105,7 +105,8 @@ p12:
 	@test $${user:?"usage: make $@ user=<name>"}
 
 	# Make the conversion
-	make IN=$(user).crt OUT=$${out:-$(user)}.p12 INC=$${inc:-$(STDINC)} p12_maker
+	#make IN=$(user).crt OUT=$${out:-$(user)}.p12 INC=$${inc:-$(STDINC)} p12_maker
+	make IN=$(user).crt OUT=$${out:-$(user)}.p12 p12_maker
 
 
 update-crl:
@@ -115,9 +116,16 @@ update-crl:
 
 revoke:
 	@test $${cert:?"usage: make $@ cert=<name>"}
-	openssl ca $(CONF) -revoke $(cert)
+	openssl ca $(CONF) -revoke $(cert).crt
 	make update-crl
-
+	set -x; \
+	  for v in 01 02 03 04 05 06 07 08 09 10; do \
+	    if [ -e revoked/$(cert).crt.$$v ]; then continue; fi ; \
+	    for f in $(cert).* ; do \
+	      mv $$f revoked/$$f.$$v ; \
+	    done ; \
+	    break ; \
+	  done ;
 
 
 # Generate a private key
@@ -132,14 +140,14 @@ revoke:
 	@echo
 	@echo "**** Create a user signing request, $@"
 	@echo
-	openssl req $(CONF) $(CSR_EXT) -new -days $(DAYS) -key $< -out $@
+	openssl req $(CONF) $(CSR_EXT) -text -new -days $(DAYS) -key $< -out $@
 
 # Generate a certificate
 %.crt: %.csr
 	@echo
 	@echo "**** Create a user certificate, $@"
 	@echo
-	openssl ca $(CONF) $(CRT_EXT) -out $@ -infiles $<
+	openssl ca $(CONF) $(CRT_EXT) -md sha512 -out $@ -infiles $<
 	make update-crl
 
 # Create a CA revoke-file
