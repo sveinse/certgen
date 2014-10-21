@@ -1,0 +1,9 @@
+.depend
+*.key
+*.crl
+*.crt
+*.csr
+*.index
+*.serial
+*.db.*
+*.p12
