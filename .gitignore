@@ -1,10 +1,10 @@
 .depend
-*.key
-*.crl
-*.crt
-*.csr
+.subca
+*.pem
 *.index
 *.serial
 *.db.*
 *.p12
 *.crlnumber*
+revoked/
+.vscode/
