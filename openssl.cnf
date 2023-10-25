@@ -307,67 +307,52 @@ proxyCertInfo=critical,language:id-ppl-anyLanguage,pathlen:3,policy:foo
 ####################################################################
 # @SVEINSE BEGIN:
 
-[ v3_ca ]
-
 # Extensions for the CA
-subjectKeyIdentifier = hash
-authorityKeyIdentifier = keyid:always, issuer:always
-basicConstraints = critical, CA:true
-keyUsage = critical, digitalSignature, cRLSign, keyCertSign
-
-
-[ v3_intermediate_ca ]
-
-# Extensions for a intermediate CA
-subjectKeyIdentifier = hash
-authorityKeyIdentifier = keyid:always, issuer:always
-basicConstraints = critical, CA:true, pathlen:0
-keyUsage = critical, digitalSignature, cRLSign, keyCertSign
-
-
-[ v3_server ]
-
-# Extensions for a server certificate
-subjectKeyIdentifier = hash
-authorityKeyIdentifier = keyid, issuer:always
-basicConstraints = CA:FALSE
-keyUsage = critical, digitalSignature, keyEncipherment
-extendedKeyUsage = serverAuth
-
-
-[ v3_user ]
-
-# Extensions for a user certificate
-subjectKeyIdentifier=hash
-authorityKeyIdentifier=keyid, issuer:always
-basicConstraints = CA:FALSE
-keyUsage = critical, nonRepudiation, digitalSignature, keyEncipherment
-extendedKeyUsage = clientAuth, emailProtection
-
-####################################################################
-
 [ v3_req_ca ]
-
 subjectKeyIdentifier   = hash
 authorityKeyIdentifier = keyid:always, issuer
 basicConstraints       = critical, CA:TRUE
 extendedKeyUsage       = codeSigning
 
-
-[ v3_req_intermediate_ca ]
-
+[ v3_ca ]
 subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always, issuer:always
+basicConstraints       = critical, CA:true
+keyUsage               = critical, digitalSignature, cRLSign, keyCertSign
+
+
+# Extensions for a intermediate CA
+[ v3_req_intermediate_ca ]
 basicConstraints       = critical, CA:TRUE
-extendedKeyUsage       = codeSigning
+
+[ v3_intermediate_ca ]
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always, issuer:always
+basicConstraints       = critical, CA:true, pathlen:0
+keyUsage               = critical, digitalSignature, cRLSign, keyCertSign
 
 
+# Extensions for a server certificate
 [ v3_req_server ]
+basicConstraints       = critical, CA:FALSE
 
-basicConstraints = critical, CA:FALSE
-keyUsage         = nonRepudiation, digitalSignature, keyEncipherment
+[ v3_server ]
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid, issuer:always
+basicConstraints       = CA:FALSE
+keyUsage               = critical, digitalSignature, keyEncipherment
+extendedKeyUsage       = serverAuth
 
 
+# Extensions for a user certificate
 [ v3_req_user ]
+basicConstraints       = critical, CA:FALSE
 
-basicConstraints = critical, CA:FALSE
-keyUsage         = nonRepudiation, digitalSignature, keyEncipherment
+[ v3_user ]
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid, issuer:always
+basicConstraints       = CA:FALSE
+keyUsage               = critical, nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage       = clientAuth, emailProtection
+
+####################################################################

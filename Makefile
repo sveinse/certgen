@@ -13,13 +13,13 @@
 # Selectable certificate types
 CERT_TYPES = intermediate_ca server user
 
-# Keysizes for the various certificate types
+# Default keysizes for the various certificate types
 ca_bits ?= 8192
 intermediate_ca_bits ?= 8192
 server_bits ?= 4096
 user_bits ?= 2048
 
-# Certificate lifetimes
+# Default certificate lifetimes
 ca_days ?= 3650
 intermediate_ca_days ?= 3650
 server_days ?= 730
@@ -37,7 +37,7 @@ CONFIG ?= openssl.cnf
 
 ###########################
 # Include dependency files if it exist
--include $(DIR)/.depend
+-include $(DIR)/settings
 export CA = $(ca)
 
 # Provide default config
@@ -65,7 +65,8 @@ export PS4
 t ?= user
 
 # Certificate type alternatives, separated by |
-cert_alt = $(subst $(space),|,$(CERT_TYPES))
+cert_types ?= $(CERT_TYPES)
+cert_alt = $(subst $(space),|,$(cert_types))
 
 
 all:
@@ -88,7 +89,7 @@ all:
 	@echo "                                        certificate and CA chain."
 	@echo "                                        k=1 will include the cert key"
 	@echo
-	@echo "Available cert types: $(subst $(space),$(comma)$(space),$(CERT_TYPES))"
+	@echo "Available cert types: $(subst $(space),$(comma)$(space),$(cert_types))"
 	@echo
 	@echo "Update and modify certificates:"
 	@echo "    make update-crl [ca=<name>]         Update revocation list"
@@ -116,6 +117,28 @@ all:
 #
 ###########################
 
+setup:
+	@mkdir -p $(DIR)
+	@( set -e; cd $(DIR); \
+	  \
+	  if [ ! -e "settings" ]; then \
+	    # Setup dependencies \
+	    s=settings; \
+	    echo "root_ca = $(ca)" >$$s; \
+	    echo "ca ?= \$$(root_ca)" >>$$s; \
+	    echo "config ?= $(config)" >>$$s; \
+	    echo "" >>$$s; \
+	    echo "cert_types := $(cert_types)" >>$$s; \
+	    echo "" >>$$s; \
+	    $(foreach ct,ca $(cert_types), \
+	      echo "$(ct)_bits := $($(ct)_bits)" >>$$s; \
+	      echo "$(ct)_days := $($(ct)_days)" >>$$s; \
+	    ) \
+	    printf "\n**** Setup new CA config in $(DIR)/settings\n"; \
+	  fi; \
+	)
+
+
 ca:
 	@test $${ca:?"usage: make $@ ca=<name>"}
 	@test -e "$(DIR)/$(ca).cert.pem" && \
@@ -123,18 +146,12 @@ ca:
 	@test "$(root_ca)" && \
 	    echo "Root CA $(root_ca) already exists" && exit 1 || true
 
+	@$(MAKE) -s setup ca=$(ca)
+
 	@echo
 	@echo "**** Create new Root CA certificate $(ca)"
 
-	@mkdir -p $(DIR)
 	@( set -e; cd $(DIR); \
-	  \
-	  # Setup dependencies \
-	  if [ ! -e .depend ]; then \
-	    echo "root_ca = $(ca)" >.depend; \
-	    echo "ca ?= \$$(root_ca)" >>.depend; \
-	    echo "config ?= $(config)" >>.depend; \
-	  fi; \
 	  \
 	  # Make the key \
 	  $(SUBMAKE) KEY_EXT="$(ca_bits)" $(ca).key.pem \
