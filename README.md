@@ -38,9 +38,9 @@ $ make cert n=me t=user  # Generate a user certificate named "me"
 $ make p12 n=me k=1      # Make p12 keybag with the "me" cert including
                          # its key and certificate chain.
 
-$ make ls                # List all certificates
+$ make info              # List all certificates
 
-$ make info n=me         # Show info about certificate "me"
+$ make cert-info n=me    # Show info about certificate "me"
 ```
 
 ## Create root CA 
@@ -114,9 +114,9 @@ The special `t=ca` options allows to make recursive certificate. Or more
 precisely, it makes intermediary CA certificates that can in turn sign other
 certificates.
 
-`make cert t=ca n=inter` will generate new intermediate CA certificates named
-"inter". This intermediary CA certificate can be used when generating new
-certificates:
+`make cert t=intermediate_ca n=inter` will generate new intermediate CA
+certificates named "inter". This intermediary CA certificate can be used when
+generating new certificates:
 
 ```sh
 $ make cert n=subcert t=user ca=inter   # New cert "subcert" signed by "inter"
