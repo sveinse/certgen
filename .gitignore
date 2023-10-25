@@ -1,10 +1,4 @@
-.depend
-.subca
-*.pem
-*.index
-*.serial
-*.db.*
-*.p12
-*.crlnumber*
-revoked/
 .vscode/
+data/
+openssl-*.cnf
+

@@ -13,11 +13,10 @@
 # defined.
 HOME			= .
 
- # Use this in order to automatically load providers.
-#openssl_conf = openssl_init
+# Use this in order to automatically load providers.
+openssl_conf = openssl_init
 
-# Comment this out if you deliberately want to ignore
-# configuration errors
+# Comment out the next line to ignore configuration errors
 config_diagnostics = 1
 
 # Extra OBJECT IDENTIFIER info:
@@ -64,6 +63,14 @@ default = default_sect
 # included fipsmodule.cnf.
 # fips = fips_sect
 
+# If no providers are activated explicitly, the default one is activated implicitly.
+# See man 7 OSSL_PROVIDER-default for more details.
+#
+# If you add a section explicitly activating any other provider(s), you most
+# probably need to explicitly activate the default provider, otherwise it
+# becomes unavailable in openssl.  As a consequence applications depending on
+# OpenSSL may not work correctly which could lead to significant system
+# problems including inability to remotely access the system.
 [default_sect]
 # activate = 1
 
@@ -78,17 +85,17 @@ default_ca	= CA_default		# The default ca section
 dir		= .			# Where everything is kept
 certs		= $dir/certs		# Where the issued certs are kept
 crl_dir		= $dir/crl		# Where the issued crl are kept
-database	= $dir/${ca}.db.index   # database index file.
-#unique_subject	= no			# Set to 'no' to allow creation of
+database	= $dir/${ca}.db.index	# database index file.
+unique_subject	= no			# Set to 'no' to allow creation of
 					# several certs with same subject.
-new_certs_dir	= $dir/${ca}.db.certs   # default place for new certs.
+new_certs_dir	= $dir/${ca}.db.certs	# default place for new certs.
 
-certificate	= $dir/${ca}.cert.pem   # The CA certificate
-serial		= $dir/${ca}.db.serial  # The current serial number
+certificate	= $dir/${ca}.cert.pem	# The CA certificate
+serial		= $dir/${ca}.db.serial	# The current serial number
 crlnumber	= $dir/${ca}.crlnumber	# the current crl number
 					# must be commented out to leave a V1 CRL
-crl		= $dir/${ca}.crl.pem    # The current CRL
-private_key	= $dir/${ca}.key.pem    # The private key
+crl		= $dir/${ca}.crl.pem	# The current CRL
+private_key	= $dir/${ca}.key.pem	# The private key
 
 x509_extensions	= usr_cert		# The extensions to add to the cert
 
@@ -107,7 +114,7 @@ cert_opt 	= ca_default		# Certificate field options
 
 default_days	= 365			# how long to certify for
 default_crl_days= 30			# how long before next CRL
-default_md	= sha256		# use public key default MD
+default_md	= default		# use public key default MD
 preserve	= no			# keep passed DN ordering
 
 # A few difference way of specifying how similar the request should look
@@ -140,10 +147,9 @@ emailAddress		= optional
 [ req ]
 default_bits		= 2048
 default_keyfile 	= privkey.pem
-default_md              = sha256
 distinguished_name	= req_distinguished_name
 #attributes		= req_attributes
-#x509_extensions	= v3_ca_sveinse	# The extensions to add to the self signed cert
+#x509_extensions	= v3_ca	# The extensions to add to the self signed cert
 
 # Passwords for private keys if not present they will be prompted for
 # input_password = secret
@@ -162,31 +168,30 @@ string_mask = utf8only
 
 [ req_distinguished_name ]
 countryName			= Country Name (2 letter code)
-countryName_default		= NO
+countryName_default		= AU
 countryName_min			= 2
 countryName_max			= 2
 
-#stateOrProvinceName		= State or Province Name (full name)
-#stateOrProvinceName_default	= Rogaland
+stateOrProvinceName		= State or Province Name (full name)
+stateOrProvinceName_default	= Some-State
 
 localityName			= Locality Name (eg, city)
-localityName_default		= Kleppe
 
 0.organizationName		= Organization Name (eg, company)
-0.organizationName_default	= Seldal
+0.organizationName_default	= Internet Widgits Pty Ltd
 
 # we can do this but it is not needed normally :-)
 #1.organizationName		= Second Organization Name (eg, company)
 #1.organizationName_default	= World Wide Web Pty Ltd
 
-#organizationalUnitName		= Organizational Unit Name (eg, section)
+organizationalUnitName		= Organizational Unit Name (eg, section)
 #organizationalUnitName_default	=
 
 commonName			= Common Name (e.g. server FQDN or YOUR name)
 commonName_max			= 64
 
-#emailAddress			= Email Address
-#emailAddress_max		= 64
+emailAddress			= Email Address
+emailAddress_max		= 64
 
 # SET-ex3			= SET extension number 3
 
@@ -206,26 +211,8 @@ unstructuredName		= An optional company name
 
 basicConstraints=CA:FALSE
 
-# Here are some examples of the usage of nsCertType. If it is omitted
-# the certificate can be used for anything *except* object signing.
-
-# This is OK for an SSL server.
-# nsCertType			= server
-
-# For an object signing certificate this would be used.
-# nsCertType = objsign
-
-# For normal client use this is typical
-# nsCertType = client, email
-
-# and for everything including object signing:
-# nsCertType = client, email, objsign
-
 # This is typical in keyUsage for a client certificate.
 # keyUsage = nonRepudiation, digitalSignature, keyEncipherment
-
-# This will be displayed in Netscape's comment listbox.
-nsComment			= "OpenSSL Generated Certificate"
 
 # PKIX recommendations harmless if included in all certificates.
 subjectKeyIdentifier=hash
@@ -240,13 +227,6 @@ authorityKeyIdentifier=keyid,issuer
 
 # Copy subject details
 # issuerAltName=issuer:copy
-
-#nsCaRevocationUrl		= http://www.domain.dom/ca-crl.pem
-#nsBaseUrl
-#nsRevocationUrl
-#nsRenewalUrl
-#nsCaPolicyUrl
-#nsSslServerName
 
 # This is required for TSA certificates.
 # extendedKeyUsage = critical,timeStamping
@@ -296,56 +276,20 @@ basicConstraints = critical,CA:true
 # issuerAltName=issuer:copy
 authorityKeyIdentifier=keyid:always,issuer:always
 
+[ proxy_cert_ext ]
+# These extensions should be added when creating a proxy certificate
 
-####################################################################
-# @SVEINSE BEGIN:
+# This goes against PKIX guidelines but some CAs do it and some software
+# requires this to avoid interpreting an end user certificate as a CA.
 
-[ v3_ca ]
-
-# Extensions for a typical CA
-subjectKeyIdentifier = hash
-authorityKeyIdentifier = keyid:always,issuer:always
-basicConstraints = critical,CA:true
-keyUsage = critical, digitalSignature, cRLSign, keyCertSign
-
-
-[ v3_intermediate_ca ]
-
-# Extensions for a typical CA
-subjectKeyIdentifier = hash
-authorityKeyIdentifier = keyid:always,issuer:always
-basicConstraints = critical,CA:true,pathlen:0
-keyUsage = critical, digitalSignature, cRLSign, keyCertSign
-
-
-[ v3_server ]
-
-basicConstraints = CA:FALSE
-nsCertType = server
-nsComment = "OpenSSL Generated Certificate"
-subjectKeyIdentifier = hash
-authorityKeyIdentifier = keyid,issuer:always
-keyUsage = critical, digitalSignature, keyEncipherment
-extendedKeyUsage = serverAuth
-
-
-[ v3_user ]
-
-basicConstraints = CA:FALSE
-
-# For normal client use this is typical
-nsCertType = client, email
+basicConstraints=CA:FALSE
 
 # This is typical in keyUsage for a client certificate.
-keyUsage = critical, nonRepudiation, digitalSignature, keyEncipherment
-extendedKeyUsage = clientAuth, emailProtection
-
-# This will be displayed in Netscape's comment listbox.
-nsComment = "OpenSSL Generated Certificate"
+# keyUsage = nonRepudiation, digitalSignature, keyEncipherment
 
 # PKIX recommendations harmless if included in all certificates.
 subjectKeyIdentifier=hash
-authorityKeyIdentifier=keyid,issuer:always
+authorityKeyIdentifier=keyid,issuer
 
 # This stuff is for subjectAltName and issuerAltname.
 # Import the email address.
@@ -357,36 +301,73 @@ authorityKeyIdentifier=keyid,issuer:always
 # Copy subject details
 # issuerAltName=issuer:copy
 
+# This really needs to be in place for it to be a proxy certificate.
+proxyCertInfo=critical,language:id-ppl-anyLanguage,pathlen:3,policy:foo
+
+####################################################################
+# @SVEINSE BEGIN:
+
+[ v3_ca ]
+
+# Extensions for the CA
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always, issuer:always
+basicConstraints = critical, CA:true
+keyUsage = critical, digitalSignature, cRLSign, keyCertSign
+
+
+[ v3_intermediate_ca ]
+
+# Extensions for a intermediate CA
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always, issuer:always
+basicConstraints = critical, CA:true, pathlen:0
+keyUsage = critical, digitalSignature, cRLSign, keyCertSign
+
+
+[ v3_server ]
+
+# Extensions for a server certificate
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid, issuer:always
+basicConstraints = CA:FALSE
+keyUsage = critical, digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+
+
+[ v3_user ]
+
+# Extensions for a user certificate
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid, issuer:always
+basicConstraints = CA:FALSE
+keyUsage = critical, nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage = clientAuth, emailProtection
+
+####################################################################
 
 [ v3_req_ca ]
 
-basicConstraints       = critical,CA:TRUE
-authorityKeyIdentifier = keyid:always,issuer
-nsCertType             = objsign, email, server
-nsComment              = "OpenSSL Generated Certificate"
 subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always, issuer
+basicConstraints       = critical, CA:TRUE
+extendedKeyUsage       = codeSigning
+
+
+[ v3_req_intermediate_ca ]
+
+subjectKeyIdentifier   = hash
+basicConstraints       = critical, CA:TRUE
 extendedKeyUsage       = codeSigning
 
 
 [ v3_req_server ]
 
-# Extensions to add to a certificate request
-basicConstraints = critical,CA:FALSE
-nsCertType       = server,email
-keyUsage         = nonRepudiation,digitalSignature,keyEncipherment
+basicConstraints = critical, CA:FALSE
+keyUsage         = nonRepudiation, digitalSignature, keyEncipherment
 
 
 [ v3_req_user ]
 
-# Extensions to add to a certificate request
-basicConstraints = critical,CA:FALSE
-nsCertType       = client,email
-keyUsage         = nonRepudiation,digitalSignature,keyEncipherment
-
-
-[ ocsp ]
-basicConstraints = CA:FALSE
-subjectKeyIdentifier = hash
-authorityKeyIdentifier = keyid,issuer:always
-keyUsage = critical, digitalSignature
-extendedKeyUsage = critical, OCSPSigning
+basicConstraints = critical, CA:FALSE
+keyUsage         = nonRepudiation, digitalSignature, keyEncipherment
