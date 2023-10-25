@@ -42,7 +42,7 @@ export CA = $(ca)
 
 # Provide default config
 config ?= $(CONFIG)
-conf := -config $(config)
+conf := -config $(if $(subconfig),$(subconfig),$(config))
 
 # Command for running openssl in a subshell with logging
 define openssl
@@ -50,7 +50,7 @@ define openssl
 endef
 
 # Running make in subdirs
-SUBMAKE = config=../$(config) DIR=. $(MAKE) -f ../Makefile
+SUBMAKE = subconfig=../$(config) DIR=. $(MAKE) -f ../Makefile -s
 
 # Make quirks
 empty :=
