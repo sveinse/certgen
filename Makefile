@@ -392,7 +392,7 @@ ca-exists:
 	@echo
 	@echo "**** Generate private key $@"
 	@echo
-	@$(call openssl, genrsa $(KEY_OPT) -out "$@" $(KEY_EXT))
+	@$(call openssl, genrsa $(KEY_OPT) -out "$@" $(KEY_EXT) $(key_ext))
 
 # Generate a signing request
 .PRECIOUS: %.csr.pem
@@ -400,7 +400,7 @@ ca-exists:
 	@echo
 	@echo "**** Create a signing request $@"
 	@echo
-	@$(call openssl, req $(conf) $(CSR_EXT) -new -text -key $< -out $@)
+	@$(call openssl, req $(conf) $(CSR_EXT) $(csr_ext) -new -text -key $< -out $@)
 
 # Generate a certificate
 .PRECIOUS: %.cert.pem
@@ -408,7 +408,7 @@ ca-exists:
 	@echo
 	@echo "**** Sign certificate $@ by $(ca)"
 	@echo
-	@$(call openssl, ca $(conf) $(CRT_EXT) -md sha512 -out $@ -infiles $<)
+	@$(call openssl, ca $(conf) $(CRT_EXT) $(crt_ext) -out $@ -infiles $<)
 	$(SUBMAKE) -C "$(DIR)" $(ca).crl.pem
 
 # Create a CA revoke-file
