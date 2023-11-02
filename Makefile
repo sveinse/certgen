@@ -48,6 +48,9 @@ conf := -config $(if $(subconfig),$(subconfig),$(config))
 define openssl
 	(set -ex; openssl $1)
 endef
+define addcert
+    grep -x "$(1)" "$(DIR)/certs" || echo "$(1)" >>"$(DIR)/certs"
+endef
 
 # Running make in subdirs
 SUBMAKE = subconfig=../$(config) DIR=. $(MAKE) -f ../Makefile -s
@@ -71,7 +74,7 @@ cert_alt = $(subst $(space),|,$(cert_types))
 
 all:
 	@echo
-	@echo "Seldal CA build system v6 2023-10-22"
+	@echo "Seldal CA build system v6 2023-11-02"
 	@echo "===================================="
 	@echo
 	@echo "Data dir: $(DIR)"
@@ -117,6 +120,7 @@ all:
 #
 ###########################
 
+.PHONY: setup
 setup:
 	@mkdir -p $(DIR)
 	@( set -e; cd $(DIR); \
@@ -139,6 +143,7 @@ setup:
 	)
 
 
+.PHONY: ca
 ca:
 	@test $${ca:?"usage: make $@ ca=<name>"}
 	@test -e "$(DIR)/$(ca).cert.pem" && \
@@ -178,6 +183,37 @@ ca:
 	)
 
 
+.PHONY: key
+key:
+	@test $${n:?"usage: make $@ n=<name> [t=$(cert_alt)] [ca=<parent>]"}
+	@test -e "$(DIR)/$(n).key.pem" && \
+	    echo "Key $(n) already exists" && exit 1 || true
+	@test ! -e "$(DIR)/$(ca).cert.pem" && \
+	    echo "CA $(ca) does not exist" && exit 1 || true
+
+	@echo
+	@echo "**** Create new key $(n)"
+
+	@( set -e; cd $(DIR); \
+	  \
+	  case "$(t)" in \
+	    $(cert_alt)) \
+	      key_ext="$($(t)_bits)"; \
+	      ;; \
+	    *) \
+	      echo "Unknown type $(t)"; \
+	      exit 1; \
+	      ;; \
+	  esac; \
+	  \
+	  # Make the key \
+	  $(SUBMAKE) KEY_EXT="$$key_ext" $(n).key.pem; \
+	  \
+	  printf "\n**** $(t) key $(n) successfully created\n"; \
+	)
+
+
+.PHONY: cert
 cert:
 	@test $${n:?"usage: make $@ n=<name> [t=$(cert_alt)] [ca=<parent>]"}
 	@test -e "$(DIR)/$(n).cert.pem" && \
@@ -229,6 +265,7 @@ cert:
 	)
 
 
+.PHONY: p12
 p12:
 	@test $${n:?"usage: make $@ n=<name> [k=1] [p12=<p12>] [inc=<inc>]"}
 	@$(SUBMAKE) -C "$(DIR)" cert-exists
@@ -265,11 +302,13 @@ p12:
 	)
 
 
+.PHONY: update-crl
 update-crl:
 	@$(SUBMAKE) -C "$(DIR)" $(ca).crl.pem
 	@$(SUBMAKE) -C "$(DIR)" ca-info
 
 
+.PHONY: revoke
 revoke:
 	@test $${n:?"usage: make $@ n=<name>"}
 	@$(SUBMAKE) -C "$(DIR)" cert-exists
@@ -280,6 +319,7 @@ revoke:
 	@$(SUBMAKE) -C "$(DIR)" ca-info
 
 
+.PHONY: obsolete
 obsolete:
 	@test $${n:?"usage: make $@ n=<name>"}
 
@@ -304,6 +344,7 @@ obsolete:
 	)
 
 
+.PHONY: cert-info
 cert-info:
 	@test $${n:?"usage: make $@ n=<name>"}
 	@echo 
@@ -312,11 +353,13 @@ cert-info:
 	openssl x509 -text -noout -certopt no_header,no_serial,no_pubkey,no_sigdump,no_signame,no_version -in $(DIR)/$(n).cert.pem
 
 
+.PHONY: key-info
 key-info:
 	@test $${n:?"usage: make $@ n=<name>"}
 	openssl rsa -text -noout -in $(DIR)/$(n).key.pem
 
 
+.PHONY: ca-db-info
 ca-db-info: ca-exists
 	@echo 
 	@echo "**** CA db for $(ca):"
@@ -324,6 +367,7 @@ ca-db-info: ca-exists
 	@cat $(DIR)/$(ca).db.index
 
 
+.PHONY: ca-info
 ca-info: ca-exists
 	@$(SUBMAKE) -C "$(DIR)" info n=$(ca)
 	@$(SUBMAKE) -C "$(DIR)" ca-db-info n=$(ca)
@@ -333,33 +377,42 @@ crl-info: ca-exists
 	openssl crl -text -noout -in $(DIR)/$(ca).crl.pem
 
 
-info:
+.PHONY: info ls
+info ls:
 	@echo
 	@echo "**** Certificates:"
 	@echo
 	@( set -e; cd "$(DIR)"; \
-	  for f in *.cert.pem; do \
-	    case "$$f" in \
-	      *.chain.cert.pem) continue;; \
-	      *) ;; \
-	    esac; \
-	    echo "$(DIR)/$$f"; \
-	    openssl x509 -text -noout -certopt no_header,no_serial,no_pubkey,no_sigdump,no_signame,no_version,no_extensions -in $$f; \
-	    echo; \
-	  done; \
+	  while read n; do \
+	    if [ -e "$$n.cert.pem" ]; then \
+	      f="$$n.cert.pem"; \
+	      echo "$(DIR)/$$f"; \
+	      openssl x509 -text -noout -certopt no_header,no_serial,no_pubkey,no_sigdump,no_signame,no_version,no_extensions -in $$f; \
+	      echo; \
+	    elif [ -e "$$n.key.pem" ]; then \
+	      f="$$n.key.pem"; \
+	      echo "$(DIR)/$$f"; \
+	      echo -n "        "; \
+	      openssl rsa -text -noout -in $$f | head -1; \
+	      echo; \
+	    fi; \
+	  done <certs; \
 	)
 
 
+.PHONY: verify
 verify:
 	@test $${n:?"usage: make $@ n=<name>"}
 	openssl verify -show_chain -CAfile $(DIR)/$(ca).chain.cert.pem $(DIR)/$(n).cert.pem
 
 
+.PHONY: p12-info
 p12-info:
 	@test $${n:?"usage: make $@ n=<name>"}
 	openssl pkcs12 -in $(DIR)/$(n).p12 -info -nokeys
 
 
+.PHONY: distclean
 distclean:
 	@test $${force:?"It wipes everything, use 'make $@ force=1'"}
 	-rm -rf $(DIR)
@@ -371,10 +424,12 @@ distclean:
 #
 ###########################
 
+.PHONY: cert-exists
 cert-exists: ca-exists
 	@test ! -e "$(DIR)/$(n).cert.pem" && \
 	    echo "Certificate $(n) does not exist" && exit 1 || true
 
+.PHONY: ca-exists
 ca-exists:
 	@test ! -e "$(DIR)/$(ca).cert.pem" && \
 	    echo "CA $(ca) does not exist" && exit 1 || true
@@ -393,6 +448,7 @@ ca-exists:
 	@echo "**** Generate private key $@"
 	@echo
 	@$(call openssl, genrsa $(KEY_OPT) -out "$@" $(KEY_EXT) $(key_ext))
+	@$(call addcert, "$(@:%.key.pem=%)")
 
 # Generate a signing request
 .PRECIOUS: %.csr.pem
@@ -401,6 +457,7 @@ ca-exists:
 	@echo "**** Create a signing request $@"
 	@echo
 	@$(call openssl, req $(conf) $(CSR_EXT) $(csr_ext) -new -text -key $< -out $@)
+	@$(call addcert, "$(@:%.csr.pem=%)")
 
 # Generate a certificate
 .PRECIOUS: %.cert.pem
@@ -409,6 +466,7 @@ ca-exists:
 	@echo "**** Sign certificate $@ by $(ca)"
 	@echo
 	@$(call openssl, ca $(conf) $(CRT_EXT) $(crt_ext) -out $@ -infiles $<)
+	@$(call addcert, "$(@:%.cert.pem=%)")
 	$(SUBMAKE) -C "$(DIR)" $(ca).crl.pem
 
 # Create a CA revoke-file
