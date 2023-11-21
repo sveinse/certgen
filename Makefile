@@ -99,8 +99,12 @@ all:
 	@echo "    make revoke n=<name> [ca=<name>]    Revoke a certificate"
 	@echo "    make obsolete n=<name>              Move a certificate to $(OBSOLETE)"
 	@echo
+	@echo "Export certificates:"
+	@echo "    make rsync d=<dest> [keys=1]        Rsync certs to <dest>"
+	@echo
 	@echo "View certificates:"
 	@echo "    make info                           List all certificates"
+	@echo "    make settings                       List configuration"
 	@echo "    make ca-info [ca=<name>]            View CA info"
 	@echo "    make ca-db-info [ca=<name>]         View CA database"
 	@echo "    make crl-info [ca=<name>]           View CA revolcation list"
@@ -420,6 +424,19 @@ p12-info:
 	@test $${n:?"usage: make $@ n=<name>"}
 	openssl pkcs12 -in $(DIR)/$(n).p12 -info -nokeys
 
+
+.PHONY: rsync
+rsync:
+	@test $${d:?"usage: make $@ d=<dest> [keys=1]"}
+	@( set -e; \
+	  if [ "$(keys)" ]; then \
+	    opts=--include="*.key.pem"; \
+	  else \
+	    opts=; \
+	  fi; \
+	  set -x; \
+	  rsync -av --include="*.cert.pem" $$opts --exclude="*" $(DIR)/ $(d)/; \
+	)
 
 .PHONY: distclean
 distclean:
