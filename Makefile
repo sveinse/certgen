@@ -37,7 +37,7 @@ CONFIG ?= openssl.cnf
 
 ###########################
 # Include dependency files if it exist
--include $(DIR)/settings
+-include $(DIR)/config
 export CA = $(ca)
 
 # Provide default config
@@ -74,7 +74,7 @@ cert_alt = $(subst $(space),|,$(cert_types))
 
 all:
 	@echo
-	@echo "Seldal CA build system v6 2023-11-02"
+	@echo "Seldal CA build system v7 2023-11-21"
 	@echo "===================================="
 	@echo
 	@echo "Data dir: $(DIR)"
@@ -125,9 +125,9 @@ setup:
 	@mkdir -p $(DIR)
 	@( set -e; cd $(DIR); \
 	  \
-	  if [ ! -e "settings" ]; then \
+	  if [ ! -e "config" ]; then \
 	    # Setup dependencies \
-	    s=settings; \
+	    s=config; \
 	    echo "root_ca = $(ca)" >$$s; \
 	    echo "ca ?= \$$(root_ca)" >>$$s; \
 	    echo "config ?= $(config)" >>$$s; \
@@ -138,7 +138,7 @@ setup:
 	      echo "$(ct)_bits := $($(ct)_bits)" >>$$s; \
 	      echo "$(ct)_days := $($(ct)_days)" >>$$s; \
 	    ) \
-	    printf "\n**** Setup new CA config in $(DIR)/settings\n"; \
+	    printf "\n**** Setup new CA config in $(DIR)/config\n"; \
 	  fi; \
 	)
 
@@ -400,6 +400,15 @@ info ls:
 	)
 
 
+.PHONY: settings
+.PRECIOUS: settings
+settings:
+	@echo
+	@echo "**** Settings:"
+	@echo
+	@cat $(DIR)/config
+
+
 .PHONY: verify
 verify:
 	@test $${n:?"usage: make $@ n=<name>"}
@@ -448,7 +457,7 @@ ca-exists:
 	@echo "**** Generate private key $@"
 	@echo
 	@$(call openssl, genrsa $(KEY_OPT) -out "$@" $(KEY_EXT) $(key_ext))
-	@$(call addcert, "$(@:%.key.pem=%)")
+	@$(call addcert,"$(@:%.key.pem=%)")
 
 # Generate a signing request
 .PRECIOUS: %.csr.pem
@@ -457,7 +466,7 @@ ca-exists:
 	@echo "**** Create a signing request $@"
 	@echo
 	@$(call openssl, req $(conf) $(CSR_EXT) $(csr_ext) -new -text -key $< -out $@)
-	@$(call addcert, "$(@:%.csr.pem=%)")
+	@$(call addcert,"$(@:%.csr.pem=%)")
 
 # Generate a certificate
 .PRECIOUS: %.cert.pem
@@ -466,7 +475,7 @@ ca-exists:
 	@echo "**** Sign certificate $@ by $(ca)"
 	@echo
 	@$(call openssl, ca $(conf) $(CRT_EXT) $(crt_ext) -out $@ -infiles $<)
-	@$(call addcert, "$(@:%.cert.pem=%)")
+	@$(call addcert,"$(@:%.cert.pem=%)")
 	$(SUBMAKE) -C "$(DIR)" $(ca).crl.pem
 
 # Create a CA revoke-file
@@ -478,7 +487,7 @@ $(ca).crl.pem: $(ca).key.pem $(ca).cert.pem $(ca).db.index $(ca).db.index.attr $
 	@$(call openssl, ca $(conf) -gencrl -out $@)
 
 %.chain.cert.pem: %.cert.pem
-	@cat $(ca).chain.cert.pem $< >$@
+	@cat $< $(ca).chain.cert.pem >$@
 
 # Create certification databases (to CA)
 %.db.certs:
