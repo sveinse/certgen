@@ -145,6 +145,16 @@ for a great guide of how to use openssl to generate self signed CA.
 
 ## Changelog
 
+### v8 update
+
+* Added mechanism for logging commands and operations
+
+### v7 update
+
+* Add system for keeping record of the generated certs
+* Change the order of chain files (the leaf cert first, CA at bottom)
+* Add rsync function to export the PKI
+
 ### v6 update
 
 * Refactored the make structure

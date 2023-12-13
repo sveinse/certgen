@@ -1,4 +1,4 @@
-# Certgen v6 - A simple certificate generator
+# Certgen v8 - A simple certificate generator
 # (C) 2004-2023 Svein Seldal
 # Licensed under MIT, see LICENSE
 #
@@ -44,12 +44,21 @@ export CA = $(ca)
 config ?= $(CONFIG)
 conf := -config $(if $(subconfig),$(subconfig),$(config))
 
+# Logging
+define calog
+	echo "$(shell date -R): $(1)" >>"$(DIR)/cmdlog.txt"
+endef
+define shalog
+	$(call calog, "$$(sha256sum $(1) | cut -d' ' -f1) $(1)")
+endef
+
 # Command for running openssl in a subshell with logging
 define openssl
+	$(call calog, "CMD: openssl $(1)")
 	(set -ex; openssl $1)
 endef
 define addcert
-    grep -x "$(1)" "$(DIR)/certs" || echo "$(1)" >>"$(DIR)/certs"
+	grep -x "$(1)" "$(DIR)/certs" || echo "$(1)" >>"$(DIR)/certs"
 endef
 
 # Running make in subdirs
@@ -74,7 +83,7 @@ cert_alt = $(subst $(space),|,$(cert_types))
 
 all:
 	@echo
-	@echo "Seldal CA build system v7 2023-11-21"
+	@echo "Seldal CA build system v8 2023-12-13"
 	@echo "===================================="
 	@echo
 	@echo "Data dir: $(DIR)"
@@ -156,6 +165,7 @@ ca:
 	    echo "Root CA $(root_ca) already exists" && exit 1 || true
 
 	@$(MAKE) -s setup ca=$(ca)
+	@$(call calog, "--- Create new Root CA certificate ca='$(ca)' config='$(config)'")
 
 	@echo
 	@echo "**** Create new Root CA certificate $(ca)"
@@ -195,6 +205,7 @@ key:
 	@test ! -e "$(DIR)/$(ca).cert.pem" && \
 	    echo "CA $(ca) does not exist" && exit 1 || true
 
+	@$(call calog, "--- Create new key n='$(n)' t='$(t)' ca='$(ca)'")
 	@echo
 	@echo "**** Create new key $(n)"
 
@@ -225,6 +236,7 @@ cert:
 	@test ! -e "$(DIR)/$(ca).cert.pem" && \
 	    echo "CA $(ca) does not exist" && exit 1 || true
 
+	@$(call calog, "--- Create new certificate n='$(n)' t='$(t)' ca='$(ca)'")
 	@echo
 	@echo "**** Create new certificate $(n)"
 
@@ -470,38 +482,46 @@ ca-exists:
 # Generate a private key
 .PRECIOUS: %.key.pem
 %.key.pem:
+	@$(call calog, "Private key: $@")
 	@echo
 	@echo "**** Generate private key $@"
 	@echo
 	@$(call openssl, genrsa $(KEY_OPT) -out "$@" $(KEY_EXT) $(key_ext))
 	@$(call addcert,"$(@:%.key.pem=%)")
+	@$(call shalog, "$@")
 
 # Generate a signing request
 .PRECIOUS: %.csr.pem
 %.csr.pem: %.key.pem
+	@$(call calog, "Signing request: $@ from $<")
 	@echo
 	@echo "**** Create a signing request $@"
 	@echo
 	@$(call openssl, req $(conf) $(CSR_EXT) $(csr_ext) -new -text -key $< -out $@)
 	@$(call addcert,"$(@:%.csr.pem=%)")
+	@$(call shalog, "$@")
 
 # Generate a certificate
 .PRECIOUS: %.cert.pem
 %.cert.pem: %.csr.pem
+	@$(call calog, "Sign certificate: $@ from $< by '$(ca)'")
 	@echo
 	@echo "**** Sign certificate $@ by $(ca)"
 	@echo
 	@$(call openssl, ca $(conf) $(CRT_EXT) $(crt_ext) -out $@ -infiles $<)
 	@$(call addcert,"$(@:%.cert.pem=%)")
 	$(SUBMAKE) -C "$(DIR)" $(ca).crl.pem
+	@$(call shalog, "$@")
 
 # Create a CA revoke-file
 .PHONY: $(ca).crl.pem
 $(ca).crl.pem: $(ca).key.pem $(ca).cert.pem $(ca).db.index $(ca).db.index.attr $(ca).crlnumber
+	@$(call calog, "Certificate revoke list: $@ from $< by '$(ca)'")
 	@echo
 	@echo "**** Update CA revoke file $@ for $(ca)"
 	@echo
 	@$(call openssl, ca $(conf) -gencrl -out $@)
+	@$(call shalog, "$@")
 
 %.chain.cert.pem: %.cert.pem
 	@cat $< $(ca).chain.cert.pem >$@
