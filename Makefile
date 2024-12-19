@@ -80,10 +80,13 @@ t ?= user
 cert_types ?= $(CERT_TYPES)
 cert_alt = $(subst $(space),|,$(cert_types))
 
+# Certificate view options
+certopt_v = no_header,no_serial,no_pubkey,no_sigdump,no_signame,no_version$(if $(q),$(comma)no_extensions,)
+certopt_vq = no_header,no_serial,no_pubkey,no_sigdump,no_signame,no_version$(if $(v),,$(comma)no_extensions)$(if $(q),$(comma)no_validity$(comma)no_issuer,)
 
 all:
 	@echo
-	@echo "Seldal CA build system v8 2023-12-13"
+	@echo "Seldal CA build system v9 2024-12-19"
 	@echo "===================================="
 	@echo
 	@echo "Data dir: $(DIR)"
@@ -101,7 +104,10 @@ all:
 	@echo "                                        certificate and CA chain."
 	@echo "                                        k=1 will include the cert key"
 	@echo
-	@echo "Available cert types: $(subst $(space),$(comma)$(space),$(cert_types))"
+	@echo "Available cert types:"
+	@$(foreach ct,ca $(cert_types), \
+	  printf "    %-16s bits=$($(ct)_bits)  days=$($(ct)_days)\n" "$(ct)"; \
+	)
 	@echo
 	@echo "Update and modify certificates:"
 	@echo "    make update-crl [ca=<name>]         Update revocation list"
@@ -112,12 +118,14 @@ all:
 	@echo "    make rsync d=<dest> [keys=1]        Rsync certs to <dest>"
 	@echo
 	@echo "View certificates:"
-	@echo "    make info                           List all certificates"
+	@echo "    make info [v=1] [q=1]               List all certificates [verbose, quiet]"
 	@echo "    make settings                       List configuration"
+	@echo "    make type-info t=<name>             View certificate type info"
 	@echo "    make ca-info [ca=<name>]            View CA info"
 	@echo "    make ca-db-info [ca=<name>]         View CA database"
 	@echo "    make crl-info [ca=<name>]           View CA revolcation list"
-	@echo "    make cert-info n=<name>             Certificate info"
+	@echo "    make cert-info n=<name> [q=1]       Certificate info [quiet]"
+	@echo "    make csr-info n=<name>              Certificate Signing Request (CSR) info"
 	@echo "    make key-info n=<name>              Key info"
 	@echo "    make p12-info n=<name>              Get P12 info"
 	@echo "    make verify n=<name> [ca=<name>]    Verify certificate"
@@ -236,9 +244,13 @@ cert:
 	@test ! -e "$(DIR)/$(ca).cert.pem" && \
 	    echo "CA $(ca) does not exist" && exit 1 || true
 
-	@$(call calog, "--- Create new certificate n='$(n)' t='$(t)' ca='$(ca)'")
 	@echo
-	@echo "**** Create new certificate $(n)"
+	@echo "**** Create new certificate '$(n)' of type '$(t)' on CA '$(ca)'"
+
+	@$(MAKE) -s cert-info n=$(ca) q=1
+	@$(MAKE) -s type-info t=$(t)
+
+	@$(call calog, "--- Create new certificate n='$(n)' t='$(t)' ca='$(ca)'")
 
 	@( set -e; cd $(DIR); \
 	  \
@@ -254,8 +266,10 @@ cert:
 	      ;; \
 	  esac; \
 	  \
-	  # Make the key \
-	  $(SUBMAKE) KEY_EXT="$$key_ext" $(n).key.pem; \
+	  # Make the key (if no signing request already exists) \
+	  if [ ! -e "$(n).csr.pem" ]; then \
+	    $(SUBMAKE) KEY_EXT="$$key_ext" $(n).key.pem; \
+	  fi; \
 	  \
 	  # Create a signing request for our CA \
 	  $(SUBMAKE) CSR_EXT="$$csr_ext" $(n).csr.pem; \
@@ -362,11 +376,30 @@ obsolete:
 
 .PHONY: cert-info
 cert-info:
-	@test $${n:?"usage: make $@ n=<name>"}
+	@test $${n:?"usage: make $@ n=<name> [q=1]"}
 	@echo 
-	@echo "**** Cert info for $(n).cert.pem:"
+	@echo "**** Cert info for $(n).cert.pem"
+	@openssl x509 -text -noout -certopt $(certopt_v) -in $(DIR)/$(n).cert.pem
+
+
+.PHONY: csr-info
+csr-info:
+	@test $${n:?"usage: make $@ n=<name>"}
+	@openssl req -text -noout -reqopt no_sigdump,no_pubkey -in $(DIR)/$(n).csr.pem
+
+
+.PHONY: type-info
+type-info:
+	@test $${t:?"usage: make $@ t=<name>"}
 	@echo
-	openssl x509 -text -noout -certopt no_header,no_serial,no_pubkey,no_sigdump,no_signame,no_version -in $(DIR)/$(n).cert.pem
+	@echo "**** Certificate type info for $(t)"
+	@echo
+	@echo "    Type: $(t)"
+	@echo "    Bits: $($(t)_bits)"
+	@echo "    Days: $($(t)_days)"
+	@echo
+	@grep -Pzo '(?s)\[\s*v3_req_$(t)\s*\].*?\n\n' $(CONFIG)
+	@grep -Pzo '(?s)\[\s*v3_$(t)\s*\].*?\n\n' $(CONFIG)
 
 
 .PHONY: key-info
@@ -403,7 +436,7 @@ info ls:
 	    if [ -e "$$n.cert.pem" ]; then \
 	      f="$$n.cert.pem"; \
 	      echo "$(DIR)/$$f"; \
-	      openssl x509 -text -noout -certopt no_header,no_serial,no_pubkey,no_sigdump,no_signame,no_version,no_extensions -in $$f; \
+	      openssl x509 -text -noout -certopt $(certopt_vq) -in $$f; \
 	      echo; \
 	    elif [ -e "$$n.key.pem" ]; then \
 	      f="$$n.key.pem"; \
@@ -507,6 +540,9 @@ ca-exists:
 	@$(call calog, "Sign certificate: $@ from $< by '$(ca)'")
 	@echo
 	@echo "**** Sign certificate $@ by $(ca)"
+	@echo
+	@echo "Signing CA:"
+	@$(call openssl, x509 -text -noout -certopt $(certopt_vq) -in $(ca).cert.pem)
 	@echo
 	@$(call openssl, ca $(conf) $(CRT_EXT) $(crt_ext) -out $@ -infiles $<)
 	@$(call addcert,"$(@:%.cert.pem=%)")

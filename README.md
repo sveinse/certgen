@@ -145,6 +145,16 @@ for a great guide of how to use openssl to generate self signed CA.
 
 ## Changelog
 
+### v9 update
+
+* Show data about the available cert types in `make` help
+* Add `v=1` (verbose) and `q=1` (quiet) options to `make info`, `make cert-info`
+* Add `make type-info` to show details about the certificate type
+* Add `make csr-info` to show details about a certificate signing request
+* Print information about CA and cert type on `make cert`
+* Permit usage of CSR files without needing a key (e.g. from external users)
+* Print CA header before signing
+
 ### v8 update
 
 * Added mechanism for logging commands and operations
